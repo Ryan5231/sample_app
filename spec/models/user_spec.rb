@@ -17,6 +17,8 @@ describe User do
   it { should respond_to(:remember_token) }
   it { should respond_to(:admin) }
   it { should respond_to(:authenticate) }
+  it { should respond_to(:microposts) }
+  it { should respond_to(:feed) }
 
   it { should be_valid }
   it { should_not be_admin }
@@ -45,8 +47,8 @@ describe User do
     it { should_not be_valid }
   end
     
-  describe "when email format is invalid" do
-    it "should be invalid" do
+    describe "when email format is invalid" do
+      it "should be invalid" do
         addresses = %w[user@foo,com user_at_foo.org example.user@foo.
                        foo@bar_baz.com foo@bar+baz.com]
         addresses.each do |invalid_address|
@@ -56,7 +58,7 @@ describe User do
       end
     end
     
-    describe "when email format is valid" do
+      describe "when email format is valid" do
         it "should be valid" do
           addresses = %w[user@foo.COM A_US-ER@f.b.org frst.lst@foo.jp a+b@baz.cn]
           addresses.each do |valid_address|
@@ -74,13 +76,13 @@ describe User do
           end
 
           it { should_not be_valid }
-        end
+      end
         
         
         describe "when password is not present" do
             before { @user.password = @user.password_confirmation = " " }
             it { should_not be_valid }
-          end
+        end
 
           describe "when password doesn't match confirmation" do
             before { @user.password_confirmation = "mismatch" }
@@ -113,10 +115,43 @@ describe User do
             end
           end
           
-        describe "remember token" do
+          describe "remember token" do
           before { @user.save }
           its(:remember_token) { should_not be_blank }
           end
-        end
+          
+          describe 'micropost associations' do
+            
+            before { @user.save }
+            let!(:older_micropost)do
+              FactoryGirl.create(:micropost, user: @user, created_at: 1.day.ago)
+            end
+            let!(:newer_micropost) do
+              FactoryGirl.create(:micropost, user: @user, created_at: 1.hour.ago)
+            end
+            
+            it "should have the right microposts in the right order" do
+              @user.microposts.should == [newer_micropost, older_micropost]
+            end
+            
+            it "should destroy associated microposts" do
+              microposts = @user.microposts
+              @user.destroy
+              microposts.each do |microposts|
+                Micropost.find_by_id(micropost.id).should be_nil
+              end
+            end
+            
+            describe "status" do
+              let(:unfollowed_post) do 
+                FactoryGirl.create(:micropost, user: FactoryGirl.create(:user))
+              end
+              
+              its(:feed) { should include(older_micropost) }
+              its(:feed) { should include(newer_micropost) }
+              its(:feed) { should_not include(unfollowed_post) }
+            end
+          end
+end
           
       
